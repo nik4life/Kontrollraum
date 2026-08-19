@@ -1,25 +1,26 @@
 {
   "name": "kontrollraum",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
-    "@prisma/client": "^6.14.0",
-    "lucide-react": "^0.468.0",
+    "@prisma/client": "6.19.3",
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.1",
+    "lucide-react": "0.468.0",
     "next": "15.5.21",
-    "prisma": "^6.14.0",
+    "prisma": "6.19.3",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.0.3",
-    "@types/react-dom": "^19.0.2",
-    "typescript": "^5.7.2"
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.3",
+    "@types/react-dom": "19.0.2",
+    "typescript": "5.7.2"
   }
 }
