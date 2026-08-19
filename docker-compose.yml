@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kontrollraum
+      POSTGRES_USER: kontrollraum
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kontrollraum-dev}
+    volumes:
+      - kontrollraum_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kontrollraum -d kontrollraum"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://kontrollraum:${POSTGRES_PASSWORD:-kontrollraum-dev}@db:5432/kontrollraum
+    ports:
+      - "3000:3000"
+
+volumes:
+  kontrollraum_db:
