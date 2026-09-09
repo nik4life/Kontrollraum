@@ -18,11 +18,11 @@ Jede Installation besitzt ihre eigene PostgreSQL-Datenbank. Die lokale Installat
 
 Der Stack besteht aus drei Diensten:
 
-- `kontrollraum-db`: PostgreSQL 17
-- `kontrollraum-migrate`: One-shot Prisma-Migrationscontainer
-- `kontrollraum-app`: Next.js Standalone App / Backend
+- `db`: PostgreSQL 17
+- `migrate`: One-shot Prisma-Migrationscontainer
+- `app`: Next.js Standalone App / Backend
 
-PostgreSQL speichert seine Daten im benannten Docker-Volume `kontrollraum_postgres_data`. Das Volume bleibt bei einem normalen Stack-Redeploy erhalten.
+PostgreSQL speichert seine Daten im Docker-Volume `postgres_data`. Docker Compose versieht dieses Volume automatisch mit dem jeweiligen Stack-/Projektnamen. Dadurch bleiben Redeploys derselben Installation persistent, während mehrere Kontrollraum-Stacks auf demselben Docker-Host sauber voneinander getrennt bleiben.
 
 ### Environment-Variablen
 
@@ -33,12 +33,12 @@ Mindestens setzen:
 ```env
 POSTGRES_DB=kontrollraum
 POSTGRES_USER=kontrollraum
-POSTGRES_PASSWORD=EIN_LANGES_ZUFAELLIGES_PASSWORT
+POSTGRES_PASSWORD=EIN_LANGES_URL_SICHERES_PASSWORT
 APP_PORT=3010
 SESSION_COOKIE_SECURE=false
 ```
 
-Für lokalen Zugriff per HTTP/VPN bleibt `SESSION_COOKIE_SECURE=false`. Bei späterem HTTPS-Betrieb auf `true` setzen.
+Für `POSTGRES_PASSWORD` beim automatisch zusammengesetzten `DATABASE_URL` am besten ein langes Passwort aus Buchstaben und Ziffern verwenden. Für lokalen Zugriff per HTTP/VPN bleibt `SESSION_COOKIE_SECURE=false`. Bei späterem HTTPS-Betrieb auf `true` setzen.
 
 > Das PostgreSQL-Passwort nach der ersten Initialisierung nicht einfach in Portainer ändern. PostgreSQL übernimmt `POSTGRES_PASSWORD` nur bei einer neuen leeren Datenbank automatisch. Passwortänderungen einer bestehenden DB müssen gezielt in PostgreSQL durchgeführt werden.
 
