@@ -7,22 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  ADMIN
-  MANAGER
-  ACCOUNTING
-  EMPLOYEE
-}
-
-enum QuoteStatus {
-  DRAFT
-  SENT
-  ACCEPTED
-  REJECTED
-  EXPIRED
-}
-
 enum OrderStatus {
+  DRAFT
   PLANNED
   IN_PROGRESS
   READY_FOR_REVIEW
@@ -43,173 +29,345 @@ enum InvoiceStatus {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  street    String?
-  zip       String?
-  city      String?
-  email     String?
-  phone     String?
-  taxNumber String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
+  id            String   @id @default(cuid())
+  name          String
+  legalName     String?  @map("legal_name")
+  street        String?
+  zip           String?
+  city          String?
+  country       String   @default("DE")
+  email         String?
+  phone         String?
+  website       String?
+  taxNumber     String?  @map("tax_number")
+  vatId         String?  @map("vat_id")
+  iban          String?
+  bic           String?
+  invoicePrefix String   @default("RE") @map("invoice_prefix")
+  quotePrefix   String   @default("AN") @map("quote_prefix")
+  orderPrefix   String   @default("AU") @map("order_prefix")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  users         User[]
+  roles         Role[]
+  customers     Customer[]
+  suppliers     Supplier[]
+  catalogItems  CatalogItem[]
+  priceLists    PriceList[]
+  importJobs    ImportJob[]
+  orders        Order[]
+  invoices      Invoice[]
+  @@map("companies")
 }
 
 model User {
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fullName     String   @map("full_name")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  sessions     Session[]
+  userRoles    UserRole[]
+  timeEntries  TimeEntry[]
+  orderNotes   OrderNote[]
+  @@map("users")
+}
+
+model Session {
   id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name      String
-  email     String   @unique
-  role      UserRole
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  timeEntries TimeEntry[]
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Module {
+  code        String @id
+  label       String
+  description String?
+  sortOrder   Int    @default(0) @map("sort_order")
+  roleModules RoleModule[]
+  @@map("modules")
+}
+
+model Role {
+  id          String @id @default(cuid())
+  companyId   String @map("company_id")
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  description String?
+  systemRole  Boolean @default(false) @map("system_role")
+  roleModules RoleModule[]
+  userRoles   UserRole[]
+  @@unique([companyId, code])
+  @@map("roles")
+}
+
+model RoleModule {
+  roleId     String  @map("role_id")
+  role       Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  moduleCode String  @map("module_code")
+  module     Module  @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
+  canView    Boolean @default(true) @map("can_view")
+  canCreate  Boolean @default(false) @map("can_create")
+  canEdit    Boolean @default(false) @map("can_edit")
+  canDelete  Boolean @default(false) @map("can_delete")
+  @@id([roleId, moduleCode])
+  @@map("role_modules")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId String @map("role_id")
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+  @@map("user_roles")
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  number    String?  @unique
-  name      String
-  street    String?
-  zip       String?
-  city      String?
-  email     String?
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  quotes    Quote[]
-  orders    Order[]
-  invoices  Invoice[]
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  number        String?
+  kind          String   @default("COMPANY")
+  name          String
+  contactPerson String?  @map("contact_person")
+  street        String?
+  zip           String?
+  city          String?
+  email         String?
+  phone         String?
+  vatId         String?  @map("vat_id")
+  notes         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  orders        Order[]
+  invoices      Invoice[]
+  @@unique([companyId, number])
+  @@map("customers")
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  companyId      String   @map("company_id")
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name           String
+  customerNumber String?  @map("customer_number")
+  email          String?
+  phone          String?
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  catalogItems   CatalogItem[]
+  @@map("suppliers")
 }
 
 model CatalogItem {
-  id          String   @id @default(cuid())
-  sku         String?  @unique
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId      String?   @map("supplier_id")
+  supplier        Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  sku             String?
+  ean             String?
+  manufacturer    String?
+  manufacturerSku String?   @map("manufacturer_sku")
+  name            String
+  description     String?
+  itemType        String    @default("MATERIAL") @map("item_type")
+  unit            String    @default("Stk")
+  purchasePrice   Decimal?  @map("purchase_price") @db.Decimal(12,2)
+  salesPrice      Decimal   @default(0) @map("sales_price") @db.Decimal(12,2)
+  taxRate         Decimal   @default(19) @map("tax_rate") @db.Decimal(5,2)
+  active          Boolean   @default(true)
+  source          String    @default("MANUAL")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  prices          CatalogPrice[]
+  orderItems      OrderItem[]
+  materialUsages  MaterialUsage[]
+  @@unique([companyId, sku])
+  @@map("catalog_items")
+}
+
+model PriceList {
+  id          String @id @default(cuid())
+  companyId   String @map("company_id")
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String
   name        String
   description String?
-  unit        String   @default("Stk")
-  purchasePrice Decimal? @db.Decimal(12, 2)
-  salesPrice  Decimal  @db.Decimal(12, 2)
-  taxRate     Decimal  @default(19) @db.Decimal(5, 2)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  prices      CatalogPrice[]
+  @@unique([companyId, code])
+  @@map("price_lists")
 }
 
-model Quote {
-  id         String      @id @default(cuid())
-  number     String      @unique
-  customerId String
-  customer   Customer    @relation(fields: [customerId], references: [id])
-  status     QuoteStatus @default(DRAFT)
-  validUntil DateTime?
-  notes      String?
-  netTotal   Decimal     @default(0) @db.Decimal(12, 2)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  items      QuoteItem[]
-  order      Order?
+model CatalogPrice {
+  itemId      String @map("item_id")
+  item        CatalogItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  priceListId String @map("price_list_id")
+  priceList   PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  price       Decimal @db.Decimal(12,2)
+  @@id([itemId, priceListId])
+  @@map("catalog_prices")
 }
 
-model QuoteItem {
-  id          String  @id @default(cuid())
-  quoteId     String
-  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  position    Int
-  description String
-  quantity    Decimal @db.Decimal(12, 3)
-  unit        String
-  unitPrice   Decimal @db.Decimal(12, 2)
-  taxRate     Decimal @default(19) @db.Decimal(5, 2)
+model ImportJob {
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceType   String   @map("source_type")
+  fileName     String?  @map("file_name")
+  status       String   @default("DONE")
+  rowsTotal    Int      @default(0) @map("rows_total")
+  rowsImported Int      @default(0) @map("rows_imported")
+  errors       Json     @default("[]")
+  createdAt    DateTime @default(now()) @map("created_at")
+  @@map("import_jobs")
 }
 
 model Order {
   id          String      @id @default(cuid())
-  number      String      @unique
-  customerId  String
+  companyId   String      @map("company_id")
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId  String      @map("customer_id")
   customer    Customer    @relation(fields: [customerId], references: [id])
-  quoteId     String?     @unique
-  quote       Quote?      @relation(fields: [quoteId], references: [id])
+  number      String
   title       String
   description String?
+  status      OrderStatus @default(DRAFT)
   street      String?
   zip         String?
   city        String?
-  status      OrderStatus @default(PLANNED)
-  scheduledAt DateTime?
-  completedAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  scheduledAt DateTime?   @map("scheduled_at")
+  completedAt DateTime?   @map("completed_at")
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  items       OrderItem[]
   timeEntries TimeEntry[]
   materials   MaterialUsage[]
   extras      ExtraWork[]
-  invoice     Invoice?
+  orderNotes  OrderNote[]
+  invoices    Invoice[]
+  @@unique([companyId, number])
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String      @id @default(cuid())
+  companyId     String      @map("company_id")
+  orderId       String      @map("order_id")
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItemId String?     @map("catalog_item_id")
+  catalogItem   CatalogItem? @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
+  position      Int
+  description   String
+  quantity      Decimal     @default(1) @db.Decimal(12,3)
+  unit          String      @default("Stk")
+  unitPrice     Decimal     @default(0) @map("unit_price") @db.Decimal(12,2)
+  taxRate       Decimal     @default(19) @map("tax_rate") @db.Decimal(5,2)
+  @@map("order_items")
 }
 
 model TimeEntry {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  startedAt DateTime
-  endedAt   DateTime?
-  minutes   Int?
-  note      String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
+  orderId     String   @map("order_id")
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId      String?  @map("user_id")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  startedAt   DateTime? @map("started_at")
+  endedAt     DateTime? @map("ended_at")
+  minutes     Int      @default(0)
+  description String?
+  billable    Boolean  @default(true)
+  hourlyRate  Decimal? @map("hourly_rate") @db.Decimal(12,2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  @@map("time_entries")
 }
 
 model MaterialUsage {
-  id          String   @id @default(cuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  description String
-  quantity    Decimal  @db.Decimal(12, 3)
-  unit        String
-  unitPrice   Decimal? @db.Decimal(12, 2)
-  createdAt   DateTime @default(now())
+  id            String       @id @default(cuid())
+  companyId     String       @map("company_id")
+  orderId       String       @map("order_id")
+  order         Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItemId String?      @map("catalog_item_id")
+  catalogItem   CatalogItem? @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
+  description   String
+  quantity      Decimal      @db.Decimal(12,3)
+  unit          String       @default("Stk")
+  unitPrice     Decimal?     @map("unit_price") @db.Decimal(12,2)
+  billable      Boolean      @default(true)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  @@map("material_usages")
 }
 
 model ExtraWork {
   id          String   @id @default(cuid())
-  orderId     String
+  companyId   String   @map("company_id")
+  orderId     String   @map("order_id")
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   description String
-  netAmount   Decimal  @db.Decimal(12, 2)
+  amount      Decimal  @default(0) @db.Decimal(12,2)
   approved    Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @map("created_at")
+  @@map("extra_work")
+}
+
+model OrderNote {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  orderId   String   @map("order_id")
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  note      String
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("order_notes")
 }
 
 model Invoice {
-  id          String        @id @default(cuid())
-  number      String?       @unique
-  customerId  String
-  customer    Customer      @relation(fields: [customerId], references: [id])
-  orderId     String?       @unique
-  order       Order?        @relation(fields: [orderId], references: [id])
-  status      InvoiceStatus @default(DRAFT)
-  netTotal    Decimal       @default(0) @db.Decimal(12, 2)
-  taxTotal    Decimal       @default(0) @db.Decimal(12, 2)
-  grossTotal  Decimal       @default(0) @db.Decimal(12, 2)
-  dueAt       DateTime?
-  sentAt      DateTime?
-  paidAt      DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  items       InvoiceItem[]
+  id         String        @id @default(cuid())
+  companyId  String        @map("company_id")
+  company    Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId String        @map("customer_id")
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  orderId    String?       @map("order_id")
+  order      Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  number     String?
+  status     InvoiceStatus @default(DRAFT)
+  netTotal   Decimal       @default(0) @map("net_total") @db.Decimal(12,2)
+  taxTotal   Decimal       @default(0) @map("tax_total") @db.Decimal(12,2)
+  grossTotal Decimal       @default(0) @map("gross_total") @db.Decimal(12,2)
+  dueAt      DateTime?     @map("due_at") @db.Date
+  sentAt     DateTime?     @map("sent_at")
+  paidAt     DateTime?     @map("paid_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  items      InvoiceItem[]
+  @@unique([companyId, number])
+  @@map("invoices")
 }
 
 model InvoiceItem {
-  id          String  @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
+  invoiceId   String   @map("invoice_id")
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   position    Int
   description String
-  quantity    Decimal @db.Decimal(12, 3)
-  unit        String
-  unitPrice   Decimal @db.Decimal(12, 2)
-  taxRate     Decimal @default(19) @db.Decimal(5, 2)
+  quantity    Decimal  @db.Decimal(12,3)
+  unit        String   @default("Stk")
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(12,2)
+  taxRate     Decimal  @default(19) @map("tax_rate") @db.Decimal(5,2)
+  @@map("invoice_items")
 }
