@@ -1,8 +1,8 @@
 import { db } from "../../../lib/db";
-import { json, requireUser } from "../../../lib/http";
+import { json, requireModule } from "../../../lib/http";
 
 export async function GET() {
-  const auth = await requireUser(); if (!auth.user) return auth.response!;
+  const auth = await requireModule("ADMIN", "view"); if (!auth.user) return auth.response!;
   const [company, roles, modules, users] = await Promise.all([
     db.company.findUnique({ where: { id: auth.user.companyId } }),
     db.role.findMany({ where: { companyId: auth.user.companyId }, include: { roleModules: true }, orderBy: { name: "asc" } }),
@@ -13,7 +13,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const auth = await requireUser(); if (!auth.user) return auth.response!;
+  const auth = await requireModule("ADMIN", "edit"); if (!auth.user) return auth.response!;
   const b = await req.json();
   const company = await db.company.update({ where: { id: auth.user.companyId }, data: {
     name: b.name,
@@ -33,7 +33,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireUser(); if (!auth.user) return auth.response!;
+  const auth = await requireModule("ADMIN", "create"); if (!auth.user) return auth.response!;
   const b = await req.json();
   const code = String(b.code || b.name || "ROLE").toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
   const role = await db.role.create({ data: {
