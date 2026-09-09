@@ -1,14 +1,13 @@
 services:
   db:
     image: postgres:17-alpine
-    container_name: kontrollraum-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-kontrollraum}
       POSTGRES_USER: ${POSTGRES_USER:-kontrollraum}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - kontrollraum_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kontrollraum} -d ${POSTGRES_DB:-kontrollraum}"]
       interval: 5s
@@ -16,13 +15,12 @@ services:
       retries: 20
       start_period: 10s
     networks:
-      - kontrollraum-internal
+      - internal
 
   migrate:
     build:
       context: .
       target: migrator
-    container_name: kontrollraum-migrate
     restart: "no"
     depends_on:
       db:
@@ -31,13 +29,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kontrollraum}?schema=public
     command: ["npx", "prisma", "migrate", "deploy"]
     networks:
-      - kontrollraum-internal
+      - internal
 
   app:
     build:
       context: .
       target: runner
-    container_name: kontrollraum-app
     restart: unless-stopped
     depends_on:
       db:
@@ -56,13 +53,11 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - kontrollraum-internal
+      - internal
 
 volumes:
-  kontrollraum_postgres_data:
-    name: kontrollraum_postgres_data
+  postgres_data:
 
 networks:
-  kontrollraum-internal:
-    name: kontrollraum-internal
+  internal:
     driver: bridge
