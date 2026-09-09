@@ -1,29 +1,68 @@
 services:
   db:
     image: postgres:17-alpine
+    container_name: kontrollraum-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: kontrollraum
-      POSTGRES_USER: kontrollraum
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kontrollraum-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-kontrollraum}
+      POSTGRES_USER: ${POSTGRES_USER:-kontrollraum}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - kontrollraum_db:/var/lib/postgresql/data
+      - kontrollraum_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kontrollraum -d kontrollraum"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kontrollraum} -d ${POSTGRES_DB:-kontrollraum}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 10s
+    networks:
+      - kontrollraum-internal
 
-  app:
-    build: .
-    restart: unless-stopped
+  migrate:
+    build:
+      context: .
+      target: migrator
+    container_name: kontrollraum-migrate
+    restart: "no"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://kontrollraum:${POSTGRES_PASSWORD:-kontrollraum-dev}@db:5432/kontrollraum
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kontrollraum}?schema=public
+    command: ["npx", "prisma", "migrate", "deploy"]
+    networks:
+      - kontrollraum-internal
+
+  app:
+    build:
+      context: .
+      target: runner
+    container_name: kontrollraum-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kontrollraum}?schema=public
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3010}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - kontrollraum-internal
 
 volumes:
-  kontrollraum_db:
+  kontrollraum_postgres_data:
+    name: kontrollraum_postgres_data
+
+networks:
+  kontrollraum-internal:
+    name: kontrollraum-internal
+    driver: bridge
