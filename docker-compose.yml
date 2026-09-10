@@ -14,8 +14,6 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
-    networks:
-      - internal
 
   migrate:
     image: ghcr.io/nik4life/kontrollraum-migrate:latest
@@ -36,8 +34,6 @@ services:
         done
         echo "PostgreSQL is reachable. Running migrations..."
         npx prisma migrate deploy
-    networks:
-      - internal
 
   app:
     image: ghcr.io/nik4life/kontrollraum-app:latest
@@ -59,12 +55,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    networks:
-      - internal
 
 volumes:
   postgres_data:
-
-networks:
-  internal:
-    driver: bridge
