@@ -5,6 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Only the newest main build may publish :latest. If several commits arrive in
+# quick succession, older runs are cancelled before they can overwrite a newer
+# image with stale application code.
+concurrency:
+  group: kontrollraum-docker-main
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
