@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronRight, ClipboardCheck, ClipboardList, FileText, FileUp, Gauge, Home, LogOut, MoreHorizontal, Package, Plus, ReceiptText, Settings, ShieldCheck, Trash2, UsersRound, Wrench } from "lucide-react";
+import PlanningWorkspace from "./planning-workspace";
+import BillingWorkspace from "./billing-workspace";
 
 type Row = Record<string, any>;
 type View = "dashboard"|"quotes"|"orders"|"planning"|"more"|"reports"|"billing"|"customers"|"catalog"|"admin";
@@ -21,7 +23,7 @@ export default function V2Client(){
  if(!user)return <Login onDone={boot}/>;
  async function logout(){await api("/api/auth/logout",{method:"POST"});setUser(null)}
  return <Shell user={user} view={view} setView={setView} logout={logout}>
-  {view==="dashboard"&&<Dashboard setView={setView}/>} {view==="quotes"&&<Quotes setView={setView}/>} {view==="orders"&&<Orders/>} {view==="planning"&&<Planning/>} {view==="reports"&&<Reports/>} {view==="billing"&&<Billing user={user}/>} {view==="customers"&&<Customers/>} {view==="catalog"&&<Catalog/>} {view==="admin"&&<Admin onChanged={boot}/>} {view==="more"&&<More setView={setView}/>} 
+  {view==="dashboard"&&<Dashboard setView={setView}/>} {view==="quotes"&&<Quotes setView={setView}/>} {view==="orders"&&<Orders/>} {view==="planning"&&<PlanningWorkspace/>} {view==="reports"&&<Reports/>} {view==="billing"&&<BillingWorkspace user={user}/>} {view==="customers"&&<Customers/>} {view==="catalog"&&<Catalog/>} {view==="admin"&&<Admin onChanged={boot}/>} {view==="more"&&<More setView={setView}/>} 
  </Shell>
 }
 
