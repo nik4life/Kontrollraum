@@ -1,8 +1,8 @@
 import { db } from "../../../../lib/db";
-import { json, requireUser } from "../../../../lib/http";
+import { json, requireModule } from "../../../../lib/http";
 
 export async function POST(req: Request) {
-  const auth = await requireUser(); if (!auth.user) return auth.response!;
+  const auth = await requireModule("CATALOG", "create"); if (!auth.user) return auth.response!;
   const b = await req.json();
   const items = Array.isArray(b.items) ? b.items : [];
   let imported = 0;
