@@ -18,9 +18,8 @@ services:
       - internal
 
   migrate:
-    build:
-      context: .
-      target: migrator
+    image: ghcr.io/nik4life/kontrollraum-migrate:latest
+    pull_policy: always
     restart: "no"
     depends_on:
       db:
@@ -32,9 +31,8 @@ services:
       - internal
 
   app:
-    build:
-      context: .
-      target: runner
+    image: ghcr.io/nik4life/kontrollraum-app:latest
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       db:
