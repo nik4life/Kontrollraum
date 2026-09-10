@@ -6,7 +6,7 @@ export async function GET() {
   const auth = await requireModule("ORDERS", "view"); if (!auth.user) return auth.response!;
   const rows = await db.order.findMany({
     where: { companyId: auth.user.companyId },
-    include: { customer: true, items: true, materials: true, extras: true },
+    include: { customer: true, items: true, materials: true, extras: true, assignments: { include: { user: { select: { id: true, fullName: true } } } } },
     orderBy: { createdAt: "desc" },
   });
   return json(rows);
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const customer = await db.customer.findFirst({ where: { id: b.customerId, companyId: auth.user.companyId, active: true } });
   if (!customer) return json({ error: "Kunde nicht gefunden." }, { status: 404 });
   const number = await nextBusinessNumber(auth.user.companyId, "ORDER");
+  const plannedMinutes = Number(b.plannedMinutes || 0);
   const row = await db.order.create({ data: {
     companyId: auth.user.companyId,
     customerId: customer.id,
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
     street: b.street || customer.street || null,
     zip: b.zip || customer.zip || null,
     city: b.city || customer.city || null,
+    plannedMinutes: Number.isFinite(plannedMinutes) && plannedMinutes > 0 ? Math.round(plannedMinutes) : null,
+    scheduledAt: b.scheduledAt ? new Date(b.scheduledAt) : null,
+    scheduledEndAt: b.scheduledEndAt ? new Date(b.scheduledEndAt) : null,
     status: b.status || "PLANNED",
     items: { create: (Array.isArray(b.items) ? b.items : []).map((x: any, i: number) => ({
       companyId: auth.user!.companyId,
@@ -39,6 +43,6 @@ export async function POST(req: Request) {
       unitPrice: x.unitPrice ?? 0,
       taxRate: x.taxRate ?? 19,
     })) },
-  }, include: { customer: true, items: true } });
+  }, include: { customer: true, items: true, assignments: true } });
   return json(row, { status: 201 });
 }
