@@ -1,4 +1,5 @@
 name: Patch nullable admin data
+# One-shot maintenance workflow; remove after successful patch.
 
 on:
   push:
