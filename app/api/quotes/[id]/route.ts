@@ -50,6 +50,46 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   if (["REJECTED","ARCHIVED","CONVERTED"].includes(quote.status)) return json({ error: "Dieses Angebot ist abgeschlossen und nicht mehr direkt bearbeitbar." }, { status: 409 });
+
+  if (b.action === "update") {
+    const items = Array.isArray(b.items) ? b.items : null;
+    if (items && !items.length) return json({ error: "Ein Angebot benötigt mindestens eine Position." }, { status: 400 });
+    for (const item of items || []) {
+      if (!String(item.description || "").trim()) return json({ error: "Jede Position benötigt eine Bezeichnung." }, { status: 400 });
+      if (item.catalogItemId) {
+        const exists = await db.catalogItem.findFirst({ where: { id: item.catalogItemId, companyId: auth.user.companyId, active: true }, select: { id: true } });
+        if (!exists) return json({ error: "Eine Angebotsposition verweist auf einen ungültigen Katalogartikel." }, { status: 400 });
+      }
+    }
+    const net = (items || quote.items).reduce((s: number, x: any) => s + Number(x.quantity ?? 1) * Number(x.unitPrice ?? 0), 0);
+    const tax = (items || quote.items).reduce((s: number, x: any) => s + Number(x.quantity ?? 1) * Number(x.unitPrice ?? 0) * Number(x.taxRate ?? 19) / 100, 0);
+    const data: any = {
+      title: String(b.title ?? quote.title).trim(),
+      description: b.description || null,
+      validUntil: b.validUntil ? new Date(b.validUntil) : null,
+      netTotal: net,
+      taxTotal: tax,
+      grossTotal: net + tax,
+    };
+    if (quote.status === "ACCEPTED") data.version = quote.version + 1;
+    if (items) {
+      data.items = {
+        deleteMany: {},
+        create: items.map((x: any, i: number) => ({
+          companyId: auth.user!.companyId,
+          catalogItemId: x.catalogItemId || null,
+          position: i + 1,
+          description: String(x.description).trim(),
+          quantity: Number(x.quantity ?? 1),
+          unit: x.unit || "Stk",
+          unitPrice: Number(x.unitPrice ?? 0),
+          taxRate: Number(x.taxRate ?? 19),
+        })),
+      };
+    }
+    return json(await db.quote.update({ where: { id }, data, include: { customer: true, items: true, order: true } }));
+  }
+
   const allowed: any = {};
   for (const key of ["title","description","notes"] as const) if (key in b) allowed[key] = b[key] || null;
   if ("validUntil" in b) allowed.validUntil = b.validUntil ? new Date(b.validUntil) : null;
