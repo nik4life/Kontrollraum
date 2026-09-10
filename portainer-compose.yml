@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kontrollraum}
+      POSTGRES_USER: ${POSTGRES_USER:-kontrollraum}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kontrollraum} -d ${POSTGRES_DB:-kontrollraum}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  migrate:
+    image: ghcr.io/nik4life/kontrollraum-migrate:latest
+    pull_policy: always
+    restart: "no"
+    network_mode: "service:db"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB:-kontrollraum}?schema=public
+    command:
+      - sh
+      - -c
+      - |
+        echo "KR-PORTAINER-COMPOSE-V1"
+        echo "Waiting for PostgreSQL on 127.0.0.1:5432..."
+        until node -e "const net=require('net'); const s=net.createConnection({host:'127.0.0.1',port:5432}); s.on('connect',()=>{s.end();process.exit(0)}); s.on('error',()=>process.exit(1)); setTimeout(()=>process.exit(1),1000);"; do
+          sleep 2
+        done
+        echo "PostgreSQL is reachable. Running migrations..."
+        npx prisma migrate deploy
+
+  app:
+    image: ghcr.io/nik4life/kontrollraum-app:latest
+    pull_policy: always
+    restart: unless-stopped
+    network_mode: "service:db"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB:-kontrollraum}?schema=public
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres_data:
