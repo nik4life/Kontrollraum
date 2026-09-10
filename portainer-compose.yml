@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    command: ["postgres", "-c", "listen_addresses=*"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-kontrollraum}
       POSTGRES_USER: ${POSTGRES_USER:-kontrollraum}
@@ -11,7 +12,7 @@ services:
     ports:
       - "${APP_PORT:-3010}:3000"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kontrollraum} -d ${POSTGRES_DB:-kontrollraum}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER:-kontrollraum} -d ${POSTGRES_DB:-kontrollraum}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -31,12 +32,12 @@ services:
       - sh
       - -c
       - |
-        echo "KR-PORTAINER-COMPOSE-V1"
-        echo "Waiting for PostgreSQL on 127.0.0.1:5432..."
-        until node -e "const net=require('net'); const s=net.createConnection({host:'127.0.0.1',port:5432}); s.on('connect',()=>{s.end();process.exit(0)}); s.on('error',()=>process.exit(1)); setTimeout(()=>process.exit(1),1000);"; do
+        echo "KR-PORTAINER-COMPOSE-V2"
+        echo "Waiting for PostgreSQL TCP on 127.0.0.1:5432..."
+        until node -e "const net=require('net'); const s=net.createConnection({host:'127.0.0.1',port:5432}); s.on('connect',()=>{console.log('TCP connect OK');s.end();process.exit(0)}); s.on('error',(e)=>{console.error('TCP error:',e.code,e.message);process.exit(1)}); setTimeout(()=>{console.error('TCP timeout');process.exit(1)},1000);"; do
           sleep 2
         done
-        echo "PostgreSQL is reachable. Running migrations..."
+        echo "PostgreSQL TCP is reachable. Running migrations..."
         npx prisma migrate deploy
 
   app:
