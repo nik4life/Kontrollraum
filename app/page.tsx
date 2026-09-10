@@ -1,5 +1,5 @@
-import V1Client from "./v1-client";
+import V2Client from "./v2-client";
 
 export default function Page() {
-  return <V1Client />;
+  return <V2Client />;
 }
