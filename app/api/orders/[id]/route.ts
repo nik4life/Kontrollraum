@@ -1,15 +1,15 @@
 import { db } from "../../../../lib/db";
-import { json, requireUser } from "../../../../lib/http";
+import { json, requireModule } from "../../../../lib/http";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const auth = await requireUser(); if (!auth.user) return auth.response!;
+  const auth = await requireModule("ORDERS", "view"); if (!auth.user) return auth.response!;
   const { id } = await ctx.params;
   const row = await db.order.findFirst({ where: { id, companyId: auth.user.companyId }, include: { customer: true, items: true, materials: true, extras: true, timeEntries: true, orderNotes: true } });
   return row ? json(row) : json({ error: "Auftrag nicht gefunden." }, { status: 404 });
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const auth = await requireUser(); if (!auth.user) return auth.response!;
+  const auth = await requireModule("ORDERS", "edit"); if (!auth.user) return auth.response!;
   const { id } = await ctx.params;
   const existing = await db.order.findFirst({ where: { id, companyId: auth.user.companyId } });
   if (!existing) return json({ error: "Auftrag nicht gefunden." }, { status: 404 });
@@ -31,6 +31,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const row = await db.orderNote.create({ data: { companyId: auth.user.companyId, orderId: id, userId: auth.user.id, note: b.note } });
     return json(row);
   }
+  const allowedStatuses = ["DRAFT","PLANNED","IN_PROGRESS","READY_FOR_REVIEW","COMPLETED","INVOICED","CANCELLED"];
+  if (!allowedStatuses.includes(String(b.status || ""))) return json({ error: "Ungültiger Auftragsstatus." }, { status: 400 });
   const row = await db.order.update({ where: { id }, data: { status: b.status, completedAt: b.status === "COMPLETED" || b.status === "READY_FOR_REVIEW" ? new Date() : undefined } });
   return json(row);
 }
