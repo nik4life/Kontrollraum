@@ -19,17 +19,18 @@ services:
     image: ghcr.io/nik4life/kontrollraum-migrate:latest
     pull_policy: always
     restart: "no"
+    network_mode: "service:db"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kontrollraum}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kontrollraum}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB:-kontrollraum}?schema=public
     command:
       - sh
       - -c
       - |
-        echo "Waiting for PostgreSQL on db:5432..."
-        until node -e "const net=require('net'); const s=net.createConnection({host:'db',port:5432}); s.on('connect',()=>{s.end();process.exit(0)}); s.on('error',()=>process.exit(1)); setTimeout(()=>process.exit(1),1000);"; do
+        echo "Waiting for PostgreSQL on 127.0.0.1:5432..."
+        until node -e "const net=require('net'); const s=net.createConnection({host:'127.0.0.1',port:5432}); s.on('connect',()=>{s.end();process.exit(0)}); s.on('error',()=>process.exit(1)); setTimeout(()=>process.exit(1),1000);"; do
           sleep 2
         done
         echo "PostgreSQL is reachable. Running migrations..."
