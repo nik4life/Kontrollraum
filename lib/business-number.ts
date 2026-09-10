@@ -1,17 +1,19 @@
 import { db } from "./db";
 
-type SequenceKind = "CUSTOMER" | "CATALOG" | "ORDER" | "INVOICE";
+type SequenceKind = "CUSTOMER" | "CATALOG" | "QUOTE" | "ORDER" | "REPORT" | "INVOICE";
 
 const PREFIX: Record<SequenceKind, string> = {
   CUSTOMER: "KD",
   CATALOG: "AR",
+  QUOTE: "AN",
   ORDER: "AU",
+  REPORT: "RP",
   INVOICE: "RE",
 };
 
 export async function nextBusinessNumber(companyId: string, kind: SequenceKind) {
   const year = new Date().getFullYear();
-  const yearly = kind === "ORDER" || kind === "INVOICE";
+  const yearly = ["QUOTE", "ORDER", "REPORT", "INVOICE"].includes(kind);
   const sequenceKey = yearly ? `${kind}_${year}` : kind;
 
   const rows = await db.$queryRaw<Array<{ current_value: number }>>`
