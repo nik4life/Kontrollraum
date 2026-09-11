@@ -119,9 +119,11 @@ export default function QuoteWorkspace({ setView }: { setView: (view: any) => vo
     setSaveState("dirty");
   }
   function removePosition(key: string) { setPositions(p => p.filter(x => x.key !== key)); setSaveState("dirty"); }
-  function addCatalogPosition(id: string) {
+  function addCatalogPosition(id: string, quantity = 1) {
     const item = catalog.find(x => x.id === id); if (!item) return;
-    setPositions(p => [...p, newPosition(item)]); setSaveState("dirty");
+    const position = newPosition(item);
+    position.quantity = Math.max(0.001, quantity);
+    setPositions(p => [...p, position]); setSaveState("dirty");
   }
 
   function changePriceList(id: string) {
@@ -229,7 +231,7 @@ export default function QuoteWorkspace({ setView }: { setView: (view: any) => vo
   </div>;
 }
 
-function PositionEditor({positions,catalog,selectedPriceList,onAdd,onUpdate,onRemove}:{positions:QuotePosition[];catalog:Row[];selectedPriceList?:Row;onAdd:(id:string)=>void;onUpdate:(key:string,patch:Partial<QuotePosition>)=>void;onRemove:(key:string)=>void}) {
+function PositionEditor({positions,catalog,selectedPriceList,onAdd,onUpdate,onRemove}:{positions:QuotePosition[];catalog:Row[];selectedPriceList?:Row;onAdd:(id:string,quantity?:number)=>void;onUpdate:(key:string,patch:Partial<QuotePosition>)=>void;onRemove:(key:string)=>void}) {
   const [search,setSearch]=useState("");
   const [expanded,setExpanded]=useState<string|null>(null);
   const [qty,setQty]=useState(1);
@@ -238,7 +240,7 @@ function PositionEditor({positions,catalog,selectedPriceList,onAdd,onUpdate,onRe
     return catalog.filter(x=>[x.sku,x.name,x.description,x.manufacturer,x.manufacturerSku].some(v=>String(v||"").toLowerCase().includes(q))).slice(0,8);
   },[catalog,search]);
   const totals=useMemo(()=>positions.reduce((a,x)=>{const net=x.quantity*x.unitPrice;return {net:a.net+net,tax:a.tax+net*x.taxRate/100}}, {net:0,tax:0}),[positions]);
-  function add(item:Row){for(let i=0;i<Math.max(1,qty);i++) onAdd(item.id); setSearch("");setQty(1)}
+  function add(item:Row){onAdd(item.id, Math.max(0.001, qty)); setSearch("");setQty(1)}
   return <section className="quote-v2-builder">
     <div className="quote-v2-addbar">
       <div className="quote-v2-add-copy"><b>Position hinzufügen</b><span>{selectedPriceList ? `Preise aus ${selectedPriceList.name}` : "Standardpreise"}</span></div>
