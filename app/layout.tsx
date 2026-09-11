@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./v1.css";
 import "./v2.css";
+import "./quote-editor-v2.css";
 
 export const metadata: Metadata = {
   title: "Kontrollraum",

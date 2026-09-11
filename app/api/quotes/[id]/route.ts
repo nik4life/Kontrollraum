@@ -17,6 +17,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!quote) return json({ error: "Angebot nicht gefunden." }, { status: 404 });
 
   if (b.action === "send") {
+    if (!quote.items.length) return json({ error: "Ein leeres Angebot kann nicht versendet werden." }, { status: 400 });
     return json(await db.quote.update({ where: { id }, data: { status: "SENT", sentAt: new Date() }, include: { customer: true, items: true, order: true } }));
   }
   if (b.action === "accept") {
@@ -53,7 +54,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (b.action === "update") {
     const items = Array.isArray(b.items) ? b.items : null;
-    if (items && !items.length) return json({ error: "Ein Angebot benötigt mindestens eine Position." }, { status: 400 });
+    if (items && !items.length && quote.status !== "DRAFT") return json({ error: "Nur ein Entwurf darf ohne Positionen gespeichert werden." }, { status: 400 });
     for (const item of items || []) {
       if (!String(item.description || "").trim()) return json({ error: "Jede Position benötigt eine Bezeichnung." }, { status: 400 });
       if (item.catalogItemId) {
