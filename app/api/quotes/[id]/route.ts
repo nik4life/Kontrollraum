@@ -29,6 +29,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (b.action === "archive") {
     return json(await db.quote.update({ where: { id }, data: { status: "ARCHIVED" }, include: { customer: true, items: true, order: true } }));
   }
+  if (b.action === "revise") {
+    if (quote.status !== "REJECTED") return json({ error: "Nur abgelehnte Angebote können als neue Version weiterbearbeitet werden." }, { status: 409 });
+    return json(await db.quote.update({ where: { id }, data: { status: "DRAFT", version: quote.version + 1, sentAt: null, respondedAt: null, acceptedAt: null, rejectedAt: null }, include: { customer: true, items: true, order: true } }));
+  }
   if (b.action === "convert") {
     if (quote.status !== "ACCEPTED") return json({ error: "Nur angenommene Angebote können in einen Auftrag umgewandelt werden." }, { status: 409 });
     if (quote.order) return json({ error: "Für dieses Angebot existiert bereits ein Auftrag.", order: quote.order }, { status: 409 });

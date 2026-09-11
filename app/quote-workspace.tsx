@@ -54,6 +54,9 @@ export default function QuoteWorkspace({ setView }: { setView: (view: any) => vo
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"idle"|"saving"|"saved"|"dirty">("idle");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState<"draft"|"pending"|"accepted"|"archive">("draft");
+  const [quoteSearch, setQuoteSearch] = useState("");
+  const [quoteSort, setQuoteSort] = useState<"newest"|"oldest"|"customer-az"|"customer-za">("newest");
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function load() {
@@ -168,6 +171,18 @@ export default function QuoteWorkspace({ setView }: { setView: (view: any) => vo
     } catch (e: any) { setError(e.message); }
   }
 
+  async function startRevision() {
+    const id = draft.id || detail?.id; if (!id) return;
+    try {
+      const revised = await api(`/api/quotes/${id}`, { method: "PATCH", body: JSON.stringify({ action: "revise" }) });
+      setDetail(revised);
+      setDraft(d => ({ ...d, number: revised.number }));
+      setSaveState("saved");
+      setLastSaved(new Date());
+      await load();
+    } catch (e: any) { setError(e.message); }
+  }
+
   function storeTemplates(next: QuoteTemplate[]) {
     setTemplates(next); localStorage.setItem("kontrollraum.quoteTemplates", JSON.stringify(next));
   }
@@ -189,11 +204,41 @@ export default function QuoteWorkspace({ setView }: { setView: (view: any) => vo
     setSaveState("dirty");
   }
 
+  const tabs = [
+    { id: "draft" as const, label: "Entwurf", statuses: ["DRAFT"] },
+    { id: "pending" as const, label: "Ausstehend", statuses: ["SENT"] },
+    { id: "accepted" as const, label: "Angenommen", statuses: ["ACCEPTED"] },
+    { id: "archive" as const, label: "Archiv", statuses: ["REJECTED", "ARCHIVED", "CONVERTED"] },
+  ];
+  const currentTab = tabs.find(x => x.id === activeTab)!;
+  const visibleRows = useMemo(() => {
+    const query = quoteSearch.trim().toLowerCase();
+    const filtered = rows.filter(x => currentTab.statuses.includes(x.status)).filter(x => {
+      if (!query) return true;
+      return [x.number, x.title, x.customer?.name].some(v => String(v || "").toLowerCase().includes(query));
+    });
+    return [...filtered].sort((a, b) => {
+      if (quoteSort === "customer-az" || quoteSort === "customer-za") {
+        const value = String(a.customer?.name || "").localeCompare(String(b.customer?.name || ""), "de", { sensitivity: "base" });
+        return quoteSort === "customer-az" ? value : -value;
+      }
+      const av = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      const bv = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      return quoteSort === "oldest" ? av - bv : bv - av;
+    });
+  }, [rows, currentTab, quoteSearch, quoteSort]);
   const canEdit = !detail || !["REJECTED","ARCHIVED","CONVERTED"].includes(detail.status);
 
   return <div className="page-wrap">
-    <div className="page-head"><div><p className="eyebrow">Vertrieb</p><h1>Angebote</h1><p>Entwürfe erstellen, kalkulieren, als PDF ausgeben und nach Annahme in Aufträge überführen.</p></div><button className="primary-btn" onClick={openCreate} disabled={!customers.length}><Plus size={17}/>Angebot</button></div>
-    <div className="list-card">{rows.length ? rows.map(x => <button className="customer-row" key={x.id} onClick={() => openDetail(x)}><div className="customer-avatar"><FileText size={17}/></div><div><b>{x.number} · {x.customer?.name}</b><span>{x.title} · {money(x.grossTotal)}</span></div><small>{quoteStatus(x.status)}</small><ChevronRight size={17}/></button>) : <Empty text={customers.length ? "Noch keine Angebote." : "Lege zuerst einen Kunden an."}/>}</div>
+    <div className="page-head"><div><p className="eyebrow">Vertrieb</p><h1>Angebote</h1><p>Entwürfe, versendete und angenommene Angebote getrennt verwalten und abgeschlossene Vorgänge im Archiv behalten.</p></div><button className="primary-btn" onClick={openCreate} disabled={!customers.length}><Plus size={17}/>Angebot</button></div>
+    <section className="quote-overview">
+      <div className="quote-tabs">{tabs.map(tab => <button type="button" key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}><span>{tab.label}</span><b>{rows.filter(x => tab.statuses.includes(x.status)).length}</b></button>)}</div>
+      <div className="quote-list-tools">
+        <label className="quote-list-search"><Search size={16}/><input value={quoteSearch} onChange={e => setQuoteSearch(e.target.value)} placeholder="Angebot, Projekt oder Auftraggeber suchen …"/>{quoteSearch && <button type="button" onClick={() => setQuoteSearch("")} aria-label="Suche löschen"><X size={15}/></button>}</label>
+        <select className="quote-list-sort" value={quoteSort} onChange={e => setQuoteSort(e.target.value as typeof quoteSort)}><option value="newest">Datum: Neueste zuerst</option><option value="oldest">Datum: Älteste zuerst</option><option value="customer-az">Auftraggeber: A–Z</option><option value="customer-za">Auftraggeber: Z–A</option></select>
+      </div>
+      <div className="quote-stage-list">{visibleRows.length ? visibleRows.map(x => <button className="quote-stage-row" key={x.id} onClick={() => openDetail(x)}><div className="customer-avatar"><FileText size={17}/></div><div className="quote-stage-main"><b>{x.number} · {x.customer?.name}</b><span>{x.title}</span></div><div className="quote-stage-meta"><strong>{money(x.grossTotal)}</strong><small>{quoteListStatus(x.status)} · {shortDate(x.createdAt || x.updatedAt)}</small></div><ChevronRight size={17}/></button>) : <Empty text={quoteSearch ? "Keine passenden Angebote gefunden." : emptyTabText(activeTab, customers.length > 0)}/>}</div>
+    </section>
 
     {editorOpen && <QuoteEditorShell close={() => setEditorOpen(false)} title={draft.number ? `${draft.number} · ${draft.title || "Entwurf"}` : "Neues Angebot"}>
       <div className="quote-v2-toolbar">
@@ -222,7 +267,7 @@ export default function QuoteWorkspace({ setView }: { setView: (view: any) => vo
         <div className="button-row quote-actions">
           {detail.status === "DRAFT" && <button className="primary-btn" onClick={() => action("send")}>Als versendet markieren</button>}
           {detail.status === "SENT" && <><button className="primary-btn" onClick={() => action("accept")}>Angenommen</button><button className="secondary-btn" onClick={() => action("reject")}>Abgelehnt</button></>}
-          {detail.status === "REJECTED" && <button className="secondary-btn" onClick={() => action("archive")}>Archivieren</button>}
+          {detail.status === "REJECTED" && <><button className="primary-btn" onClick={startRevision}>Neue Version bearbeiten</button><button className="secondary-btn" onClick={() => action("archive")}>Archivieren</button></>}
           {detail.status === "ACCEPTED" && <button className="primary-btn" onClick={() => { const h=window.prompt("Geplanter Zeitansatz in Stunden", "1"); if(h) action("convert",{plannedMinutes:Math.round(num(h)*60)}); }}>In Auftrag umwandeln</button>}
         </div>
       </div>}
@@ -289,5 +334,8 @@ function Empty({text}:{text:string}){return <div className="empty-row"><span>{te
 function num(v:any){const n=Number(String(v??"").replace(",","."));return Number.isFinite(n)?n:0}
 function money(v:any){return new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(Number(v||0))}
 function formatQty(v:number){return new Intl.NumberFormat("de-DE",{maximumFractionDigits:3}).format(v)}
-function quoteStatus(v:string){return ({DRAFT:"Entwurf",SENT:"Wartet auf Antwort",ACCEPTED:"Angenommen",REJECTED:"Abgelehnt",ARCHIVED:"Archiv",CONVERTED:"Auftrag erstellt"} as Row)[v]||v}
+function quoteStatus(v:string){return ({DRAFT:"Entwurf",SENT:"Ausstehend",ACCEPTED:"Angenommen",REJECTED:"Abgelehnt",ARCHIVED:"Archiviert",CONVERTED:"Beauftragt"} as Row)[v]||v}
+function quoteListStatus(v:string){return ({DRAFT:"Entwurf",SENT:"Versendet",ACCEPTED:"Angenommen",REJECTED:"Abgelehnt",ARCHIVED:"Archiviert",CONVERTED:"Beauftragt"} as Row)[v]||v}
+function shortDate(v:any){if(!v)return "–";const d=new Date(v);return Number.isNaN(d.getTime())?"–":new Intl.DateTimeFormat("de-DE").format(d)}
+function emptyTabText(tab:string,hasCustomers:boolean){if(!hasCustomers)return "Lege zuerst einen Kunden an.";return ({draft:"Keine offenen Entwürfe.",pending:"Keine versendeten Angebote warten auf Rückmeldung.",accepted:"Keine angenommenen Angebote warten auf Beauftragung.",archive:"Das Archiv ist leer."} as Row)[tab]||"Keine Angebote."}
 function dateInput(v:any){if(!v)return "";const d=new Date(v);return Number.isNaN(d.getTime())?"":d.toISOString().slice(0,10)}
