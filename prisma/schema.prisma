@@ -221,6 +221,7 @@ model CatalogItem {
   purchasePrice   Decimal?  @map("purchase_price") @db.Decimal(12,2)
   salesPrice      Decimal   @default(0) @map("sales_price") @db.Decimal(12,2)
   taxRate         Decimal   @default(19) @map("tax_rate") @db.Decimal(5,2)
+  discountEligible Boolean  @default(true) @map("discount_eligible")
   active          Boolean   @default(true)
   source          String    @default("MANUAL")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -292,6 +293,8 @@ model Quote {
   taxTotal    Decimal     @default(0) @map("tax_total") @db.Decimal(12,2)
   grossTotal  Decimal     @default(0) @map("gross_total") @db.Decimal(12,2)
   notes       String?
+  cashDiscountPercent Decimal? @map("cash_discount_percent") @db.Decimal(5,2)
+  cashDiscountDays Int? @map("cash_discount_days")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   items       QuoteItem[]
@@ -312,6 +315,9 @@ model QuoteItem {
   unit          String       @default("Stk")
   unitPrice     Decimal      @default(0) @map("unit_price") @db.Decimal(12,2)
   taxRate       Decimal      @default(19) @map("tax_rate") @db.Decimal(5,2)
+  discountType String @default("PERCENT") @map("discount_type")
+  discountValue Decimal @default(0) @map("discount_value") @db.Decimal(12,2)
+  discountEligible Boolean @default(true) @map("discount_eligible")
   @@map("quote_items")
 }
 
@@ -504,6 +510,8 @@ model Invoice {
   netTotal   Decimal       @default(0) @map("net_total") @db.Decimal(12,2)
   taxTotal   Decimal       @default(0) @map("tax_total") @db.Decimal(12,2)
   grossTotal Decimal       @default(0) @map("gross_total") @db.Decimal(12,2)
+  cashDiscountPercent Decimal? @map("cash_discount_percent") @db.Decimal(5,2)
+  cashDiscountDays Int? @map("cash_discount_days")
   dueAt      DateTime?     @map("due_at") @db.Date
   sentAt     DateTime?     @map("sent_at")
   paidAt     DateTime?     @map("paid_at")
@@ -525,5 +533,8 @@ model InvoiceItem {
   unit        String   @default("Stk")
   unitPrice   Decimal  @map("unit_price") @db.Decimal(12,2)
   taxRate     Decimal  @default(19) @map("tax_rate") @db.Decimal(5,2)
+  discountType String @default("PERCENT") @map("discount_type")
+  discountValue Decimal @default(0) @map("discount_value") @db.Decimal(12,2)
+  discountEligible Boolean @default(true) @map("discount_eligible")
   @@map("invoice_items")
 }
