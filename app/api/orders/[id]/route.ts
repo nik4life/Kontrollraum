@@ -26,8 +26,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
 
   if (action === "material") {
-    const row = await db.materialUsage.create({ data: { companyId: auth.user.companyId, orderId: id, catalogItemId: b.catalogItemId || null, description: b.description, quantity: b.quantity ?? 1, unit: b.unit || "Stk", unitPrice: b.unitPrice ?? null } });
-    return json(row);
+    const catalog = await db.catalogItem.findFirst({ where: { id: String(b.catalogItemId || ""), companyId: auth.user.companyId, active: true, itemType: "MATERIAL" } });
+    if (!catalog) return json({ error: "Bitte Material aus dem Katalog auswählen." }, { status: 400 });
+    const quantity = Number(b.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) return json({ error: "Ungültige Materialmenge." }, { status: 400 });
+    return json(await db.materialUsage.create({ data: { companyId: auth.user.companyId, orderId: id, catalogItemId: catalog.id, description: catalog.name, quantity, unit: catalog.unit, unitPrice: catalog.salesPrice } }));
   }
   if (action === "extra") {
     const row = await db.extraWork.create({ data: { companyId: auth.user.companyId, orderId: id, description: b.description, amount: b.amount ?? 0, approved: Boolean(b.approved) } });
