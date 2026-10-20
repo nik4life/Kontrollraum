@@ -9,7 +9,7 @@ function money(v:any){return new Intl.NumberFormat("de-DE",{style:"currency",cur
 function invoiceStatus(v:string){return ({DRAFT:"Entwurf",REVIEW:"Rechnungsvorschlag",APPROVED:"Freigegeben",SENT:"Offen",PARTIALLY_PAID:"Teilbezahlt",PAID:"Bezahlt / Archiv",OVERDUE:"Überfällig",CANCELLED:"Storniert"} as Row)[v]||v}
 
 export default function BillingWorkspace({user}:{user:Row}){
- const[invoices,setInvoices]=useState<Row[]>([]),[orders,setOrders]=useState<Row[]>([]),[reports,setReports]=useState<Row[]>([]),[preview,setPreview]=useState<Row|null>(null),[invoiceDetail,setInvoiceDetail]=useState<Row|null>(null),[error,setError]=useState("");
+ const[invoices,setInvoices]=useState<Row[]>([]),[orders,setOrders]=useState<Row[]>([]),[reports,setReports]=useState<Row[]>([]),[preview,setPreview]=useState<Row|null>(null),[invoiceDetail,setInvoiceDetail]=useState<Row|null>(null),[error,setError]=useState(""), [catalog,setCatalog]=useState<Row[]>([]), [selectedCatalog,setSelectedCatalog]=useState(""), [newQuantity,setNewQuantity]=useState(1);
  async function load(){const[i,o,r]=await Promise.all([api("/api/billing"),api("/api/orders"),api("/api/reports")]);setInvoices(i);setOrders(o);setReports(r);try{setCatalog(await api("/api/catalog"))}catch{setCatalog([])}}
  useEffect(()=>{load()},[]);
  const reviewO=orders.filter(x=>x.status==="READY_FOR_REVIEW"),readyO=orders.filter(x=>x.status==="COMPLETED"&&!invoices.some(i=>i.orderId===x.id&&i.status!=="CANCELLED")),reviewR=reports.filter(x=>x.status==="READY_FOR_REVIEW"),readyR=reports.filter(x=>x.status==="APPROVED"&&!x.invoices?.some((i:Row)=>i.status!=="CANCELLED"));
