@@ -1,7 +1,7 @@
 import { db } from "../../../../lib/db";
 import { json, requireModule } from "../../../../lib/http";
 
-type Position = { description: string; quantity: number; unit: string; unitPrice: number; taxRate: number; source: string };
+type Position = { id?: string; description: string; quantity: number; unit: string; unitPrice: number; taxRate: number; source: string };
 
 export async function POST(req: Request) {
   const auth = await requireModule("BILLING", "view"); if (!auth.user) return auth.response!;
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const order = await db.order.findFirst({ where: { id: b.orderId, companyId }, include: { customer: true, items: true, materials: true, extras: true, timeEntries: true } });
     if (!order) return json({ error: "Auftrag nicht gefunden." }, { status: 404 });
     source = { kind: "order", id: order.id, number: order.number, title: order.title, customer: order.customer };
-    for (const x of order.items) positions.push({ description: x.description, quantity: Number(x.quantity), unit: x.unit, unitPrice: Number(x.unitPrice), taxRate: Number(x.taxRate), source: "Auftragsposition" });
+    for (const x of order.items) positions.push({ id:x.id, description: x.description, quantity: Number(x.quantity), unit: x.unit, unitPrice: Number(x.unitPrice), taxRate: Number(x.taxRate), source: "Auftragsposition" });
     for (const x of order.materials.filter(x => x.billable && x.unitPrice !== null)) positions.push({ description: x.description, quantity: Number(x.quantity), unit: x.unit, unitPrice: Number(x.unitPrice), taxRate: 19, source: "Material Ist" });
     for (const x of order.timeEntries.filter(x => x.billable && x.hourlyRate !== null && x.minutes > 0)) positions.push({ description: x.description || "Arbeitszeit", quantity: x.minutes / 60, unit: "Std", unitPrice: Number(x.hourlyRate), taxRate: 19, source: "Arbeitszeit" });
     for (const x of order.extras.filter(x => x.approved)) positions.push({ description: `Nachtrag: ${x.description}`, quantity: 1, unit: "pauschal", unitPrice: Number(x.amount), taxRate: 19, source: "Nachtrag" });
