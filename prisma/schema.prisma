@@ -339,6 +339,8 @@ model Order {
   plannedMinutes Int?        @map("planned_minutes")
   completedAt    DateTime?   @map("completed_at")
   notes          String?
+  cashDiscountPercent Decimal? @map("cash_discount_percent") @db.Decimal(5,2)
+  cashDiscountDays Int? @map("cash_discount_days")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
   sourceQuote    Quote?
@@ -397,6 +399,9 @@ model OrderItem {
   unit          String       @default("Stk")
   unitPrice     Decimal      @default(0) @map("unit_price") @db.Decimal(12,2)
   taxRate       Decimal      @default(19) @map("tax_rate") @db.Decimal(5,2)
+  discountType String @default("PERCENT") @map("discount_type")
+  discountValue Decimal @default(0) @map("discount_value") @db.Decimal(12,2)
+  discountEligible Boolean @default(true) @map("discount_eligible")
   @@map("order_items")
 }
 

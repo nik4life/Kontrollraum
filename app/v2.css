@@ -5,3 +5,16 @@
 /* Scheduled jobs span their complete duration across hourly rows. */
 .planner-cell:has(> .job-block){z-index:3}
 .planner-cell .job-block{box-sizing:border-box;cursor:pointer;text-align:left;align-items:flex-start}
+
+/* Mobile billing review: readable stacked positions without horizontal overflow. */
+@media(max-width:680px){
+ .billing-position-list .table-head{display:none}
+ .billing-position-list .billing-position-row{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px;padding:14px}
+ .billing-position-list .billing-position-row>div:first-child{grid-column:1/-1;min-width:0;overflow-wrap:anywhere}
+ .billing-position-list .billing-position-row>span:nth-child(2){grid-column:1}
+ .billing-position-list .billing-position-row>span:nth-child(3){grid-column:2;text-align:right}
+ .billing-position-list .billing-position-row>strong{grid-column:1/-1;text-align:right}
+ .modal{max-width:min(100%,680px);box-sizing:border-box}
+ .modal .panel{min-width:0}
+ .modal input,.modal select{max-width:100%;box-sizing:border-box}
+}
