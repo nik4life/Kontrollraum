@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     salesPrice: b.salesPrice ?? 0,
     taxRate: b.taxRate ?? 19,
     source: "MANUAL",
+    discountEligible: b.discountEligible !== false,
   }});
   return json(row, { status: 201 });
 }
