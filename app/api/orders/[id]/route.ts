@@ -17,11 +17,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const action = b.action;
   if (["INVOICED","CANCELLED"].includes(existing.status) && ["item","material","extra","time","note"].includes(action)) return json({ error: "Dieser Auftrag ist abgeschlossen." }, { status: 409 });
   if (action === "item") {
-    const description = String(b.description || "").trim();
-    const quantity = Number(b.quantity), unitPrice = Number(b.unitPrice), taxRate = Number(b.taxRate ?? 19);
-    if (!description || description.length > 2000 || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0 || !Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) return json({ error: "Ungültige Auftragsposition." }, { status: 400 });
+    const catalog = await db.catalogItem.findFirst({ where: { id: String(b.catalogItemId || ""), companyId: auth.user.companyId, active: true } });
+    if (!catalog) return json({ error: "Bitte einen Artikel oder eine Leistung aus dem Katalog wählen." }, { status: 400 });
+    const quantity = Number(b.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) return json({ error: "Ungültige Menge." }, { status: 400 });
     const last = await db.orderItem.aggregate({ where: { orderId: id, companyId: auth.user.companyId }, _max: { position: true } });
-    return json(await db.orderItem.create({ data: { companyId: auth.user.companyId, orderId: id, position: (last._max.position || 0) + 1, description, quantity, unit: String(b.unit || "Stk").slice(0,30), unitPrice, taxRate } }));
+    return json(await db.orderItem.create({ data: { companyId: auth.user.companyId, orderId: id, catalogItemId: catalog.id, position: (last._max.position || 0) + 1, description: catalog.name, quantity, unit: catalog.unit, unitPrice: catalog.salesPrice, taxRate: catalog.taxRate } }));
   }
 
   if (action === "material") {
