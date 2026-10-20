@@ -18,3 +18,13 @@
  .modal .panel{min-width:0}
  .modal input,.modal select{max-width:100%;box-sizing:border-box}
 }
+
+.billing-stats-filters{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 16px}
+.billing-stats-filters .field{min-width:140px;max-width:240px;flex:1}
+.billing-stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.billing-stats-grid>div{border:1px solid #e3e8eb;border-radius:13px;padding:16px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.billing-stats-grid span{font-size:11px;color:#64717d}
+.billing-stats-grid strong{font-size:22px;overflow-wrap:anywhere}
+.billing-stats-grid small{font-size:10px;color:#7b858f}
+@media(max-width:950px){.billing-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.billing-stats-grid{grid-template-columns:1fr 1fr;gap:8px}.billing-stats-grid>div{padding:11px}.billing-stats-grid strong{font-size:17px}}
