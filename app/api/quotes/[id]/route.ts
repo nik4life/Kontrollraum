@@ -1,6 +1,7 @@
 import { db } from "../../../../lib/db";
 import { nextBusinessNumber } from "../../../../lib/business-number";
 import { json, requireModule } from "../../../../lib/http";
+import { totals, validateLines, validateCashTerms } from "../../../../lib/discounts";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireModule("QUOTES", "view"); if (!auth.user) return auth.response!;
@@ -66,15 +67,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         if (!exists) return json({ error: "Eine Angebotsposition verweist auf einen ungültigen Katalogartikel." }, { status: 400 });
       }
     }
-    const net = (items || quote.items).reduce((s: number, x: any) => s + Number(x.quantity ?? 1) * Number(x.unitPrice ?? 0), 0);
-    const tax = (items || quote.items).reduce((s: number, x: any) => s + Number(x.quantity ?? 1) * Number(x.unitPrice ?? 0) * Number(x.taxRate ?? 19) / 100, 0);
+    let amount, cash;
+    try {
+      validateLines(items || quote.items);
+      cash=validateCashTerms(b.cashDiscountPercent ?? quote.cashDiscountPercent,b.cashDiscountDays ?? quote.cashDiscountDays);
+      amount=totals(items || quote.items);
+    } catch(e:any){return json({error:e.message},{status:400});}
     const data: any = {
       title: String(b.title ?? quote.title).trim(),
       description: b.description || null,
       validUntil: b.validUntil ? new Date(b.validUntil) : null,
-      netTotal: net,
-      taxTotal: tax,
-      grossTotal: net + tax,
+      netTotal: amount.net,
+      taxTotal: amount.tax,
+      grossTotal: amount.gross,
+      cashDiscountPercent: cash.percent,
+      cashDiscountDays: cash.days,
     };
     if (quote.status === "ACCEPTED") data.version = quote.version + 1;
     if (items) {
@@ -89,6 +96,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           unit: x.unit || "Stk",
           unitPrice: Number(x.unitPrice ?? 0),
           taxRate: Number(x.taxRate ?? 19),
+          discountType: x.discountType === "AMOUNT" ? "AMOUNT" : "PERCENT",
+          discountValue: Number(x.discountValue || 0),
+          discountEligible: x.discountEligible !== false,
         })),
       };
     }

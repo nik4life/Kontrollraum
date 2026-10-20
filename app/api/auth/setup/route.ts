@@ -12,14 +12,16 @@ export async function POST(req: Request) {
   const companyName = String(body.companyName || "").trim();
   if (!fullName || !email || password.length < 8 || !companyName) return NextResponse.json({ error: "Pflichtfelder fehlen oder das Passwort ist zu kurz." }, { status: 400 });
 
+  const zip = String(body.zip || "").trim();
+  if (zip && !/^[0-9]{5}$/.test(zip)) return NextResponse.json({ error: "PLZ muss fünf Ziffern enthalten." }, { status: 400 });
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await db.$transaction(async (tx) => {
     const company = await tx.company.create({ data: {
       name: companyName,
       street: body.street || null,
-      zip: body.zip || null,
+      zip: zip || null,
       city: body.city || null,
-      email: body.companyEmail || email,
+      email: String(body.companyEmail || "").trim() || null,
       phone: body.phone || null,
     }});
     const admin = await tx.user.create({ data: { companyId: company.id, fullName, email, passwordHash } });
